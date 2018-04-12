@@ -2,22 +2,14 @@ import os
 import sys
 import math
 import scipy
-import ctypes
-import scipy.fftpack
-import scipy.interpolate
-import scipy.optimize
-import scipy.stats
-import scipy.linalg
-
-import struct
 import datetime
-import array
 import glob
 import tables
 # import matplotlib
 # matplotlib.use('Agg')
 # import pylab
 import numpy
+from scipy.integrate import simps
 
 # some natural constants
 v_lightspeed=299792458
@@ -42,35 +34,30 @@ def ProcessFAConductivity(fname_ac):
     # read in the data
     with tables.open_file(fname_ac) as h5:
 
-                # tspect    = h5.root.Processed.Spectra.read()
-                # unix_time = h5.root.Time.UnixTime.read()
 
         ne1=h5.root.FittedParams.Ne.read()#dat1['/FittedParams']['Ne']
         dne1=h5.root.FittedParams.dNe.read()# dne1=dat1['/FittedParams']['dNe']
-    # vlos1=dat1['/FittedParams']['Fits'][:,:,:,0,3]+CHIRP
-    # dvlos1=dat1['/FittedParams']['Errors'][:,:,:,0,3]
         time1=h5.root.Time.UnixTime.read()#dat1['/Time']['UnixTime']
         dtime1=h5.root.Time.dtime.read()#dat1['/Time']['dtime']
     # (Nrecs1,Nbeams1,Nhts1)=vlos1.shape
         Altitude=h5.root.FittedParams.Altitude.read()#dat1['/FittedParams']['Altitude']
-    # kpn1=dat1['/Geomag']['kpn']; kpe1=dat1['/Geomag']['kpe']; kpar1=dat1['/Geomag']['kpar']
-    # k1=scipy.zeros((Nbeams1,Nhts1,3),dtype=kpn1.dtype)
-    # k1[:,:,0]=kpe1; k1[:,:,1]=kpn1; k1[:,:,2]=kpar1
+
         Babs1=h5.root.Geomag.Babs.read()#dat1['/Geomag']['Babs'];
         if Babs1[0,0]<1.0e-5:
-            Babs1=Babs1*1.0e5
-    # dec1=dat1['/Geomag']['Declination']; dip1=dat1['/Geomag']['Dip']
+            Babs1=Babs1*1.0e5 # convert to nanoTelsa
     # '/FittedParams/IonMass' : [('TITLE','Ion Mass'),('Description', 'Mass of ions used in fitting'),('Unit','amu')],\
     # '/FittedParams/Fits' : [('TITLE','Fits'),('Description','Fitted parameters'),('Size','Nrecords x Nbeams x Nranges x Nions+1 x 4 (fraction, temperature, collision frequency, LOS speed)'),('Unit','N/A, Kelvin, s^{-1}, m/s')],\
         mass=h5.root.FittedParams.IonMass.read()#dat1['/FittedParams']['IonMass']
         Fits=h5.root.FittedParams.Fits.read()#dat1['/FittedParams']['Fits'][:,:,:,0:2,0] # O+ fraction
         BeamCodes = h5.root.BeamCodes.read()
     #nuin=dat1['/FittedParams']['Fits'][:,:,:,0:2,2]
+
     fraction = Fits[:,:,:,0:-1,0] # fraction including electrons as index = -1
     nuin = Fits[:,:,:,0:-1,2] # collision frequency, including electrons as index = -1
     nuen = Fits[:,:,:,-1,2]
     PedCond = numpy.zeros(ne1.shape)
     HallCond = numpy.zeros(ne1.shape)
+    # define the mobility
     mob=v_elemcharge/(v_amu*nuin); #mob[:,:,:,0]=mob[:,:,:,0]/mass[0]; mob[:,:,:,1]=mob[:,:,:,1]/mass[
     nuinScaler = 1.0
     Babs = numpy.tile(Babs1,ne1.shape[0]).reshape(ne1.shape) # generate a time x beam x altitude array of magnetic field
@@ -82,12 +69,13 @@ def ProcessFAConductivity(fname_ac):
         # equation 2.40a in Kelley's textbook
         sp1 = ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0))*fraction[:,:,:,i]
         # equation 10 from Bostrom 1964 in my notebook
+        # should be good > 85 km
         sh1 = ne1*v_elemcharge*fraction[:,:,:,i]/(Babs*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0)) # fraction in effect weights things
         print sp1
         PedCond = PedCond + sp1
         HallCond = HallCond + sh1
 
-    from scipy.integrate import simps
+
     HallConductance = numpy.zeros(HallCond.shape[0]) # time axis
     PedConductance = numpy.zeros(PedCond.shape[0])
     FA_index = numpy.where((BeamCodes[:,1] == -154.3) & (BeamCodes[:,2] == 77.5))[0][0]
@@ -143,10 +131,12 @@ for ifile in fname_ac:
 HallConductivity = HallConductivity[1:,:]
 PedersenConductivity = PedersenConductivity[1:,:]
 
-X = numpy.array([TimeUTHour,PedersenConductance,HallConductance])
-with open('20130317_Conductances.txt', 'wb') as f:
-    f.write('Time (Decimal UT Hours), Pedersen Conductance (mho), Hall Conductance (mho) \n')
-    numpy.savetxt(f,X.T)
+print PedersenConductivity.shape
+
+# X = numpy.array([TimeUTHour,PedersenConductance,HallConductance])
+# with open('20130317_Conductances.txt', 'wb') as f:
+#     f.write('Time (Decimal UT Hours), Pedersen Conductance (mho), Hall Conductance (mho) \n')
+#     numpy.savetxt(f,X.T)
 
 # sort by time
 
