@@ -5,9 +5,9 @@ import scipy
 import datetime
 import glob
 import tables
-# import matplotlib
-# matplotlib.use('Agg')
-# import pylab
+import matplotlib
+#matplotlib.use('Agg')
+import pylab as plt
 import numpy
 from scipy.integrate import simps
 
@@ -98,14 +98,17 @@ def ProcessFAConductivity(fname_ac):
         HallConductivity = HallCond[:,FA_index,:]
         PedConductivity = PedCond[:,FA_index,:]
         TimeUTHour = numpy.mean(dtime1, axis=1)
+        UnixTime = numpy.mean(time1,axis=1)
         FA_Altitude = Altitude[FA_index,:]
     else:
         HallConductivity = []
         PedConductivity = []
         TimeUTHour = []
+        UnixTime = []
         FA_Altitude = []
 
-    return HallConductivity, PedConductivity,PedConductance, HallConductance,TimeUTHour,FA_Altitude
+    return HallConductivity, PedConductivity,PedConductance, HallConductance,\
+           TimeUTHour,FA_Altitude, UnixTime
 
 fname_ac=['./20130316.006.done/20130316.006_ac_5min-cal.h5',\
           './20130317.003/20130317.003_ac_5min-cal.h5', \
@@ -117,21 +120,46 @@ HallConductance = numpy.zeros([0])
 PedersenConductivity = numpy.zeros([1,25])
 PedersenConductance = numpy.zeros([0])
 TimeUTHour = numpy.zeros([0])
+UnixTime = numpy.zeros([0])
 Altitude = []
 
 for ifile in fname_ac:
-    tH1,tP1,tP2,tH2,t,alt = ProcessFAConductivity(ifile)
+    tH1,tP1,tP2,tH2,t,alt,tunixTime = ProcessFAConductivity(ifile)
     HallConductivity = numpy.concatenate((HallConductivity,tH1),axis=0)
     PedersenConductivity = numpy.concatenate((PedersenConductivity,tP1),axis=0)
     PedersenConductance = numpy.concatenate((PedersenConductance,tP2), axis=0)
     HallConductance = numpy.concatenate((HallConductance,tH2), axis=0)
     TimeUTHour = numpy.concatenate((TimeUTHour,t), axis=0)
+    UnixTime = numpy.concatenate((UnixTime,tunixTime), axis=0)
 
 # remove first element of Hall conductivity
 HallConductivity = HallConductivity[1:,:]
 PedersenConductivity = PedersenConductivity[1:,:]
 
+# sort out the data before printing.
+# sort out the times and just make sure everything is ordered by time
+#unix time should be increasing
+qsort = numpy.argsort(UnixTime)
+UnixTime = UnixTime[qsort]
+TimeUTHour = TimeUTHour[qsort]
+PedersenConductivity = PedersenConductivity[qsort,:]
+HallConductivity = HallConductivity[qsort,:]
+PedersenConductance = PedersenConductance[qsort]
+HallConductance = HallConductance[qsort]
+
+# time gaps program
+plt.figure(1)
+plt.plot((UnixTime-UnixTime[0])/3600., PedersenConductance, 'b-', label='P')
+plt.plot((UnixTime-UnixTime[0])/3600., HallConductance, 'r-', label='H')
+plt.legend()
+plt.show()
+
+
 print PedersenConductivity.shape
+
+# plt.figure(1)
+# plt.plot(PedersenConductivity)
+# plt.show()
 
 # X = numpy.array([TimeUTHour,PedersenConductance,HallConductance])
 # with open('20130317_Conductances.txt', 'wb') as f:
