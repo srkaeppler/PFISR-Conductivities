@@ -26,8 +26,62 @@ This program is designed to quickly calculate the conductivity and conductance
 
 """
 
-# read in fitted data
 
+def compute_collfreq(nO,nN2,nO2,Tn, Ti=None,Te=1000.0, mj=30.0):
+
+#   nu_in = 0.0
+#   nu_in = nu_in + d[1]*scipy.sqrt(0.79/16) # O
+#   nu_in = nu_in + d[2]*scipy.sqrt(1.76/28) # N2
+#   nu_in = nu_in + d[3]*scipy.sqrt(1.59/32) # O2
+#   nu_in = nu_in*2.6e-9
+# d[0] - HE NUMBER DENSITY(CM-3)
+#   d[1] - O NUMBER DENSITY(CM-3)
+#   d[2] - N2 NUMBER DENSITY(CM-3)
+#   d[3] - O2 NUMBER DENSITY(CM-3)
+
+    if len(Ti) > 0:
+        if Tn.shape[0] == Ti.shape[0]:
+            Tr = (Tn+Ti)/2.0
+        else:
+            raise Exception( 'altitude arrays are not equal for Ti and Tn')
+    else:
+        Ti=Tn
+        Tr = (Tn+Ti)/2.0
+    nu_in = 0.0
+    if mj==16.0: # O
+        #O+ + O
+        # n(O) = d[1]
+        # Schunk and Nagy Table 4.5
+        nu_in = nu_in + nO*3.67e-11*numpy.sqrt(Tr)*(1.0-0.064*numpy.log10(Tr))**2.0
+    else:
+        nu_in = nu_in + 1.0e6*nO*9.14e-15/numpy.sqrt(mj*(mj+16.0)) # not entirely sure where this comes from
+    if mj==28.0: # N2
+        # n(N2) = d[2]
+        #N2+ + N2
+        # Schunk and Nagy Table 4.5
+        nu_in = nu_in + nN2*5.14e-11*numpy.sqrt(Tr)*(1.0-0.069*numpy.log10(Tr))**2.0
+    else:
+        nu_in = nu_in + 1.0e6*nN2*1.80e-14/numpy.sqrt(mj*(mj+28.0))
+    if mj==32.0 and Tn>800.0: # O2
+        #n(O2) = d[3]
+        # O2+ + O2
+        # Schunk and Nagy Table 4.5
+        nu_in = nu_in + nO2*2.59e-11*numpy.sqrt(Tr)*(1.0-0.073*numpy.log10(Tr))**2.0
+    else:
+        nu_in = nu_in + 1.0e6*nO2*1.83e-14/numpy.sqrt(mj*(mj+32.0))
+
+    nu_en = 0.0
+    nu_en = nu_en +nO*8.2e-10*numpy.sqrt(Te) # O
+    nu_en = nu_en + nN2*2.33e-11*(1-1.2e-4*Te)*Te # N2
+    nu_en = nu_en + nO2*1.8e-10*(1+3.6e-2*numpy.sqrt(Te))*numpy.sqrt(Te)
+
+    return nu_in, nu_en
+
+
+
+
+
+# read in fitted data
 
 def ProcessFAConductivity(fname_ac):
     # bring this up to speed with python2.7
@@ -50,18 +104,37 @@ def ProcessFAConductivity(fname_ac):
         mass=h5.root.FittedParams.IonMass.read()#dat1['/FittedParams']['IonMass']
         Fits=h5.root.FittedParams.Fits.read()#dat1['/FittedParams']['Fits'][:,:,:,0:2,0] # O+ fraction
         BeamCodes = h5.root.BeamCodes.read()
+        # convert to cm^-3
+        nO = h5.root.MSIS.nO.read()/1e6
+        nO2 = h5.root.MSIS.nO2.read()/1e6
+        nN2 = h5.root.MSIS.nN2.read()/1e6
+        Tn = h5.root.MSIS.Tn.read()
+        IonMass = h5.root.FittedParams.IonMass.read()
     #nuin=dat1['/FittedParams']['Fits'][:,:,:,0:2,2]
 
     fraction = Fits[:,:,:,0:-1,0] # fraction including electrons as index = -1
     nuin = Fits[:,:,:,0:-1,2] # collision frequency, including electrons as index = -1
     nuen = Fits[:,:,:,-1,2]
+    Ti = Fits[:,:,:,0:-1,1]
+    Te = Fits[:,:,:,-1,1]
     PedCond = numpy.zeros(ne1.shape)
     HallCond = numpy.zeros(ne1.shape)
+
+    print nO.shape, nN2.shape, nO2.shape, Tn.shape, Ti[:,:,:,0].shape
+
+    tmpnuin,tmpnuen = compute_collfreq(nO,nN2,nO2,Tn, Ti=Ti[:,:,:,0])
+    print 'tmp nu in',tmpnuin.shape
+    print 'nu_in',nuin.shape
     # define the mobility
-    mob=v_elemcharge/(v_amu*nuin); #mob[:,:,:,0]=mob[:,:,:,0]/mass[0]; mob[:,:,:,1]=mob[:,:,:,1]/mass[
+    #mob=v_elemcharge/(v_amu*nuin); #mob[:,:,:,0]=mob[:,:,:,0]/mass[0]; mob[:,:,:,1]=mob[:,:,:,1]/mass[
+    mob = v_elemcharge/(v_amu*tmpnuin)
     nuinScaler = 1.0
     Babs = numpy.tile(Babs1,ne1.shape[0]).reshape(ne1.shape) # generate a time x beam x altitude array of magnetic field
 
+    print 'nO.shape', nO.shape
+    print 'IonMass', IonMass.shape, IonMass
+    # print 'Ti', Ti
+    print 'nu in.shape', nuin.shape
     for i in range(mass.shape[0]):
         mob[:,:,:,i] = mob[:,:,:,i]/mass[i]
         kappa = mob*1.0
@@ -71,7 +144,7 @@ def ProcessFAConductivity(fname_ac):
         # equation 10 from Bostrom 1964 in my notebook
         # should be good > 85 km
         sh1 = ne1*v_elemcharge*fraction[:,:,:,i]/(Babs*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0)) # fraction in effect weights things
-        print sp1
+        # print sp1
         PedCond = PedCond + sp1
         HallCond = HallCond + sh1
 
@@ -86,12 +159,12 @@ def ProcessFAConductivity(fname_ac):
             qp = numpy.where((~numpy.isnan(PedCond[i,FA_index,:])) &  (Altitude[FA_index,:] > 85e3))
             # print HallCond[i,1,qh],Altitude[1,qh]
             if (len(qh[0]) > 0):
-                print 'Hall', simps(HallCond[i,FA_index,qh],Altitude[FA_index,qh])
+                # print 'Hall', simps(HallCond[i,FA_index,qh],Altitude[FA_index,qh])
                 HallConductance[i] = simps(HallCond[i,FA_index,qh],Altitude[FA_index,qh])[0]
             else:
                 HallConductance[i] = -1.
             if (len(qp[0]) > 0):
-                print 'Ped', simps(PedCond[i,FA_index,qp],Altitude[FA_index,qp])
+                # print 'Ped', simps(PedCond[i,FA_index,qp],Altitude[FA_index,qp])
                 PedConductance[i] = simps(PedCond[i,FA_index,qp],Altitude[FA_index,qp])[0]
             else:
                 PedConductance[i] = -1.
