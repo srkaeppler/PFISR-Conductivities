@@ -24,6 +24,14 @@ pi=math.pi
 """
 This program is designed to quickly calculate the conductivity and conductance
 
+Assumptions:
+    1. only examine field-aligned radar look direction
+    2. The ion neutral collision frequency is weighted by
+    concentration, which I believe is from the FLIP model.
+    3. I am not entirely sure where one of the ion neutral collision
+    frequencies is coming from
+
+
 """
 
 
@@ -45,6 +53,7 @@ def compute_collfreq(nO,nN2,nO2,Tn, Ti=None,Te=1000.0, mj=30.0):
         else:
             raise Exception( 'altitude arrays are not equal for Ti and Tn')
     else:
+        print 'in else'
         Ti=Tn
         Tr = (Tn+Ti)/2.0
     nu_in = 0.0
@@ -62,7 +71,8 @@ def compute_collfreq(nO,nN2,nO2,Tn, Ti=None,Te=1000.0, mj=30.0):
         nu_in = nu_in + nN2*5.14e-11*numpy.sqrt(Tr)*(1.0-0.069*numpy.log10(Tr))**2.0
     else:
         nu_in = nu_in + 1.0e6*nN2*1.80e-14/numpy.sqrt(mj*(mj+28.0))
-    if mj==32.0 and Tn>800.0: # O2
+
+    if mj==32.0:# and Tn>800.0: # O2
         #n(O2) = d[3]
         # O2+ + O2
         # Schunk and Nagy Table 4.5
@@ -83,7 +93,7 @@ def compute_collfreq(nO,nN2,nO2,Tn, Ti=None,Te=1000.0, mj=30.0):
 
 # read in fitted data
 
-def ProcessFAConductivity(fname_ac):
+def ProcessFAConductivity(fname_ac, opt='Original'):
     # bring this up to speed with python2.7
     # read in the data
     with tables.open_file(fname_ac) as h5:
@@ -120,30 +130,38 @@ def ProcessFAConductivity(fname_ac):
     PedCond = numpy.zeros(ne1.shape)
     HallCond = numpy.zeros(ne1.shape)
 
-    print nO.shape, nN2.shape, nO2.shape, Tn.shape, Ti[:,:,:,0].shape
-
-    tmpnuin,tmpnuen = compute_collfreq(nO,nN2,nO2,Tn, Ti=Ti[:,:,:,0])
-    print 'tmp nu in',tmpnuin.shape
-    print 'nu_in',nuin.shape
-    # define the mobility
-    #mob=v_elemcharge/(v_amu*nuin); #mob[:,:,:,0]=mob[:,:,:,0]/mass[0]; mob[:,:,:,1]=mob[:,:,:,1]/mass[
-    mob = v_elemcharge/(v_amu*tmpnuin)
-    nuinScaler = 1.0
-    Babs = numpy.tile(Babs1,ne1.shape[0]).reshape(ne1.shape) # generate a time x beam x altitude array of magnetic field
-
-    print 'nO.shape', nO.shape
-    print 'IonMass', IonMass.shape, IonMass
-    # print 'Ti', Ti
-    print 'nu in.shape', nuin.shape
+    # print nO.shape, nN2.shape, nO2.shape, Tn.shape, Ti[:,:,:,0].shape
+    # print 'fraction', fraction
+    nuinISR = numpy.zeros(Ti.shape)*numpy.nan
     for i in range(mass.shape[0]):
-        mob[:,:,:,i] = mob[:,:,:,i]/mass[i]
-        kappa = mob*1.0
-        kappa[:,:,:,i] = kappa[:,:,:,i]*Babs1
+        print mass[i]
+        tmpnuin,tmpnuen = compute_collfreq(nO,nN2,nO2,Tn, Ti=Ti[:,:,:,i],mj=mass[i])
+        # print 'tmp nu in',tmpnuin.shape
+        nuinISR[:,:,:,i] = tmpnuin
+
+
+    if opt == 'Original':
+        mob=v_elemcharge/(v_amu*nuin); # original form in Keely textbook 2009 p. 42
+    if opt == 'ISR':
+        mob = v_elemcharge/(v_amu*nuinISR)
+    nuinScaler = 1.0 # scalar to increase value of ion-neutral collision frequency
+    Babs = numpy.tile(Babs1,ne1.shape[0]).reshape(ne1.shape) # generate a time x beam x altitude array of magnetic field
+    # loop over the ion type.
+    # assume that since nuIn is weighted by fractional amount that
+    # performs any weighting in the conductivity equation
+    for i in range(mass.shape[0]):
+        mob[:,:,:,i] = mob[:,:,:,i]/mass[i] # equivalent to the form on p 42 of Kelley 2009 textbook
+        kappa[:,:,:,i] = kappa[:,:,:,i]*Babs1 # equivalent to the form on p 42 of Kelley 2009 textbook
+
         # equation 2.40a in Kelley's textbook
-        sp1 = ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0))*fraction[:,:,:,i]
+        # note that the weighting is on the outside equivalent to Evans 1977, JGR
+        # weighting is fractional concentration, so from 0-1.
+        sp1 = fraction[:,:,:,i]*ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0))*fraction[:,:,:,i]
+
         # equation 10 from Bostrom 1964 in my notebook
         # should be good > 85 km
-        sh1 = ne1*v_elemcharge*fraction[:,:,:,i]/(Babs*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0)) # fraction in effect weights things
+        # note again the weighting on the outside
+        sh1 = fraction[:,:,:,i]*ne1*v_elemcharge/(Babs*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0)) # fraction in effect weights things
         # print sp1
         PedCond = PedCond + sp1
         HallCond = HallCond + sh1
