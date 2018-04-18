@@ -29,7 +29,10 @@ Assumptions:
     2. The ion neutral collision frequency is weighted by
     concentration, which I believe is from the FLIP model.
     3. I am not entirely sure where one of the ion neutral collision
-    frequencies is coming from
+    frequencies is coming from in the "else" part of the call.
+    Contacted Ashton Reimer about that, he didn't know either.
+    Mike Nicolls was the original author.
+    4. Only looking at conductivities > 85 km altitude
 
 
 """
@@ -38,6 +41,7 @@ Assumptions:
 class Conductivity:
     def __init__(self,location='PFISR'):
 
+        self.location = location
         # can configure for other radars too...
         if location == 'PFISR':
             self.azFA = -154.3
@@ -224,20 +228,31 @@ class Conductivity:
     def CalculateConductance(self,fname_ac,outLocation):
 
         # need to figure out how to dynamically allocate this...
-        HallConductivity = numpy.zeros([1,25])
-        HallConductance = numpy.zeros([0])
-        HallConductanceISR = numpy.zeros([0])
-        PedersenConductivity = numpy.zeros([1,25])
-        PedersenConductance = numpy.zeros([0])
-        PedersenConductanceISR = numpy.zeros([0])
-        TimeUTHour = numpy.zeros([0])
-        UnixTime = numpy.zeros([0])
-        Altitude = []
 
+        k = True
         for ifile in fname_ac:
+            print ifile
+
+
             tH1,tP1,tP2,tH2,t,alt,tunixTime = self.ProcessFAConductivity(ifile)
-            HallConductivity = numpy.concatenate((HallConductivity,tH1),axis=0)
-            PedersenConductivity = numpy.concatenate((PedersenConductivity,tP1),axis=0)
+            if k:
+                print tH1.shape
+                HallConductivity = numpy.zeros([1,50])
+                HallConductance = numpy.zeros([0])
+                HallConductanceISR = numpy.zeros([0])
+                PedersenConductivity = numpy.zeros([1,50])
+                PedersenConductance = numpy.zeros([0])
+                PedersenConductanceISR = numpy.zeros([0])
+                TimeUTHour = numpy.zeros([0])
+                UnixTime = numpy.zeros([0])
+                Altitude = []
+                k=False
+            tmpHall = numpy.zeros([tH1.shape[0],50])
+            tmpHall[:,0:tH1.shape[1]] = tH1
+            HallConductivity = numpy.concatenate((HallConductivity,tmpHall),axis=0)
+            tmpPed = numpy.zeros([tP1.shape[0],50])
+            tmpPed[:,0:tP1.shape[1]] = tP1
+            PedersenConductivity = numpy.concatenate((PedersenConductivity,tmpPed),axis=0)
             PedersenConductance = numpy.concatenate((PedersenConductance,tP2), axis=0)
             HallConductance = numpy.concatenate((HallConductance,tH2), axis=0)
             TimeUTHour = numpy.concatenate((TimeUTHour,t), axis=0)
@@ -268,15 +283,28 @@ class Conductivity:
         HallConductanceISR = HallConductanceISR[qsort]
         PedersenConductanceISR = PedersenConductanceISR[qsort]
 
+        # do some file name making.
+        t0 = datetime.datetime.utcfromtimestamp(int(UnixTime[0]))
+        startTimeStr = str(t0.year)+str(t0.month).zfill(2)+str(t0.day).zfill(2)+'T'+str(t0.hour).zfill(2)+str(t0.minute).zfill(2)+'UT'
+
+        t1 = datetime.datetime.utcfromtimestamp(int(UnixTime[-1]))
+        endTimeStr = str(t1.year)+str(t1.month).zfill(2)+str(t1.day).zfill(2)+'T'+str(t1.hour).zfill(2)+str(t1.minute).zfill(2)+'UT'
+
+        outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.txt'
+        outPng =  self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.png'
         X = numpy.array([UnixTime,TimeUTHour,PedersenConductance,HallConductance, PedersenConductanceISR, HallConductanceISR])
-        with open('Test20130317_Conductances.txt', 'wb') as f:
+        with open(os.path.join(outLocation,outFile), 'wb') as f:
             f.write('############################################################################################# \n')
             f.write('Author: S.R. Kaeppler \n')
             f.write('Email: skaeppl@clemson.edu \n')
+            f.write('Version number: v0.1\n')
             f.write('File Created: %s \n'%datetime.datetime.now())
+            f.write('Valid Time: %s-%s\n'%(startTimeStr,endTimeStr))
+
+            f.write('\n')
             f.write('Columns (values of -1 indicate failed altitude integration) \n')
             f.write('UnixTime: seconds since 01 January 1970 00:00:00 UT, absolute time reference \n')
-            f.write('Time: Decimal Hours (hours) \n ')
+            f.write('Time: UT Decimal Hours (hours) \n ')
             f.write('Pedersen Conductance (mho) using MSIS Tn=Ti \n')
             f.write('Hall Conductance (mho) using MSIS Tn=Ti \n')
             f.write('Pedersen Conductance (mho) using ISR Ti and MSIS Tn \n')
@@ -286,62 +314,59 @@ class Conductivity:
 
 
         # time gaps program
-        plt.figure(1)
-        plt.plot(TimeUTHour, PedersenConductance, 'b.', label='P Org')
-        plt.plot(TimeUTHour, HallConductance, 'r.', label='H Org')
-        plt.plot(TimeUTHour, PedersenConductanceISR, 'bx', label='P ISR')
-        plt.plot(TimeUTHour, HallConductanceISR, 'rx', label='H ISR')
-        plt.xlabel('Time UT Hours')
+        plt.figure(dpi=300,figsize=(11,8.5))
+        tmpT = (UnixTime-UnixTime[0])/3600.
+        plt.plot(tmpT, PedersenConductance, 'b.', label='P Org')
+        plt.plot(tmpT, HallConductance, 'r.', label='H Org')
+        plt.plot(tmpT, PedersenConductanceISR, 'bx', label='P ISR')
+        plt.plot(tmpT, HallConductanceISR, 'rx', label='H ISR')
+        plt.xlabel('Time Hours after T0')
         plt.ylabel('Conductance (mho)')
         plt.legend()
-        plt.show()
+        plt.title('%s %s-%s'%(self.location,startTimeStr,endTimeStr))
+        plt.tight_layout()
+        plt.savefig(os.path.join(outLocation,outPng))
+        plt.close()
+        # plt.show()
 
 
 
 
 if __name__ == '__main__':
-    fname_ac=['./20130316.006.done/20130316.006_ac_5min-cal.h5',\
-          './20130317.003/20130317.003_ac_5min-cal.h5', \
-          './20130317.005.done/20130317.005_ac_5min-cal.h5']
+    conduct = Conductivity()
+
+
+    # 17 March 2013
+    fname_ac=['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5',\
+              '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130317.005.done/20130317.005_ac_5min-cal.h5', \
+              '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Nighttime31/20130317.003/20130317.003_ac_5min-cal.h5',\
+              '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Dregion31/20130317.001.done/20130317.001_ac_5min-cal.h5',\
+              '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Dregion31/20130317.011.done/20130317.011_ac_5min-cal.h5']
         #   './20170317.005/20170317.005_ac_3min-fitcal.h5',\
         #   './20170317.007/20170317.007_ac_3min-fitcal.h5']
-
-    conduct = Conductivity()
     conduct.CalculateConductance(fname_ac, './')
-# plt.figure(1)
-# plt.plot(PedersenConductivity)
-# plt.show()
 
-# X = numpy.array([TimeUTHour,PedersenConductance,HallConductance])
-# with open('20130317_Conductances.txt', 'wb') as f:
-#     f.write('Time (Decimal UT Hours), Pedersen Conductance (mho), Hall Conductance (mho) \n')
-#     numpy.savetxt(f,X.T)
+    # June 21-24, 2015
+    fname_ac =['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/IPY27_Tracking_v03/20150621.002/20150621.002_ac_5min-fitcal.h5',\
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/IPY27_Tracking_v03/20150622.002/20150622.002_ac_5min-fitcal.h5', \
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/IPY27_Tracking_v03/20150623.001/20150623.001_ac_5min-fitcal.h5', \
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/IPY27_Tracking_v03/20150624.003/20150624.003_ac_5min-fitcal.h5', \
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/IPY27_Tracking_v03/20150625.001/20150625.001_ac_5min-fitcal.h5', \
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/WorldDay35/20150622.004/20150622.004_ac_3min-fitcal.h5',\
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/WorldDay35/20150623.002/20150623.002_ac_3min-fitcal.h5',\
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/WorldDay35/20150624.002/20150624.002_ac_3min-fitcal.h5', \
+               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/WorldDay35/20150624.004/20150624.004_ac_3min-fitcal.h5']
+    conduct.CalculateConductance(fname_ac, './')
 
-# sort by time
-
-# qsort = numpy.argsort(TimeUTHour)
-# HallConductance = HallConductance[qsort]
-# PedersenConductance = PedersenConductance[qsort]
-# HallConductivity = HallConductivity[qsort,:]
-# PedersenConductivity = PedersenConductivity[qsort,:]
-# TimeUTHour = TimeUTHour[qsort]
-# Altitude = alt
-
-# save out to an idl save file
-
-
-# now calculate the electron part for Pedersen
-# sp1e=ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0))*fraction[:,:,:,i]
-
-# mob=v_elemcharge/(v_amu*nuin); mob[:,:,:,0]=mob[:,:,:,0]/mass[0]; mob[:,:,:,1]=mob[:,:,:,1]/mass[1]
-# tmob = mob
-# mob = tmob*srkMob # see if this makes a difference in the kappa
-# # print 'stop and check the mobility factor of 2'
-# # sys.exit()
-# kappa=mob*1.0; kappa[:,:,:,0]=kappa[:,:,:,0]*Babs1; kappa[:,:,:,1]=kappa[:,:,:,1]*Babs1
-# # mass-weighted params
-# nuin1=nuin[:,:,:,0]*fraction[:,:,:,0] + nuin[:,:,:,1]*fraction[:,:,:,1] # mass weighted collision frequency
-# mob1=mob[:,:,:,0]*fraction[:,:,:,0]+mob[:,:,:,1]*fraction[:,:,:,1] # mass weighted mobility
-# kappa1=kappa[:,:,:,0]*fraction[:,:,:,0]+kappa[:,:,:,1]*fraction[:,:,:,1] # mass weighted kappa
-# sp1=ne1*v_elemcharge*v_elemcharge/(v_amu*mass[0]*nuinScaler*nuin[:,:,:,0]*(1.0+(kappa[:,:,:,0]/nuinScaler)**2.0))*fraction[:,:,:,0]
-# +ne1*v_elemcharge*v_elemcharge/(v_amu*mass[1]*nuinScaler*nuin[:,:,:,1]*(1.0+(kappa[:,:,:,1]/nuinScaler)**2.0))*fraction[:,:,:,1] # Pedersen conductance
+    #Oct 13-15, 2016
+    fname_ac = ['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/IPY27_Tracking_v03/20161012.002/20161012.002_ac_5min-fitcal.h5', \
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/IPY27_Tracking_v03/20161012.005/20161012.005_ac_5min-fitcal.h5',\
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/IPY27_Tracking_v03/20161013.002/20161013.002_ac_5min-fitcal.h5', \
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/IPY27_Tracking_v03/20161015.006/20161015.006_ac_5min-fitcal.h5', \
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161013.004/20161013.004_ac_3min-fitcal.h5', \
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161014.002/20161014.002_ac_3min-fitcal.h5', \
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161014.005/20161014.005_ac_3min-fitcal.h5', \
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161015.002/20161015.002_ac_3min-fitcal.h5', \
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161015.005/20161015.005_ac_3min-fitcal.h5',\
+                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/MSWinds23/20161013.003/20161013.003_ac_5min-fitcal.h5']
+    conduct.CalculateConductance(fname_ac, './')
