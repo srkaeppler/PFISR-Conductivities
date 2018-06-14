@@ -180,7 +180,7 @@ class Conductivity:
             # equation 2.40a in Kelley's textbook
             # note that the weighting is on the outside equivalent to Evans 1977, JGR
             # weighting is fractional concentration, so from 0-1.
-            sp1 = fraction[:,:,:,i]*ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0))*fraction[:,:,:,i]
+            sp1 = fraction[:,:,:,i]*ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0)) #*fraction[:,:,:,i]
 
             # equation 10 from Bostrom 1964 in my notebook
             # should be good > 85 km
@@ -299,6 +299,8 @@ class Conductivity:
         outDict['PedersenConductivity'] = PedersenConductivity
         outDict['HallConductivity'] = HallConductivity
         outDict['Ne'] = NeOut
+        outDict['HallConductance'] = HallConductanceISR
+        outDict['PedersenConductance'] = PedersenConductanceISR
 
 
 
@@ -366,8 +368,9 @@ if __name__ == '__main__':
     #           '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Dregion31/20130317.011.done/20130317.011_ac_5min-cal.h5']
     #     #   './20170317.005/20170317.005_ac_3min-fitcal.h5',\
     #     #   './20170317.007/20170317.007_ac_3min-fitcal.h5']
-    fname_ac = ['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5', \
-                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Nighttime31/20130317.003/20130317.003_ac_5min-cal.h5']
+    fname_ac = ['/Users/srkaeppler/research/data/pfisr/conductance_allsky/events/20121106/ISR/20121106.004_ac_3min-cal.h5']
+
+
     conduct.CalculateConductance(fname_ac, './')
 
     # # June 21-24, 2015
