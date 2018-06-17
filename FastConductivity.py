@@ -10,6 +10,7 @@ import matplotlib
 import pylab as plt
 import numpy
 from scipy.integrate import simps
+import pickle
 
 # some natural constants
 v_lightspeed=299792458
@@ -179,7 +180,7 @@ class Conductivity:
             # equation 2.40a in Kelley's textbook
             # note that the weighting is on the outside equivalent to Evans 1977, JGR
             # weighting is fractional concentration, so from 0-1.
-            sp1 = fraction[:,:,:,i]*ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0))*fraction[:,:,:,i]
+            sp1 = fraction[:,:,:,i]*ne1*v_elemcharge*v_elemcharge/(v_amu*mass[i]*nuinScaler*nuin[:,:,:,i]*(1.0+(kappa[:,:,:,i]/nuinScaler)**2.0))
 
             # equation 10 from Bostrom 1964 in my notebook
             # should be good > 85 km
@@ -292,6 +293,16 @@ class Conductivity:
 
         outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.txt'
         outPng =  self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.png'
+
+        outDict = dict()
+        outDict['UnixTime'] = UnixTime
+        outDict['TimeUTHour'] = TimeUTHour
+        outDict['PedersenConductivity'] = PedersenConductivity
+        outDict['HallConductivity'] = HallConductivity
+        outDict['HallConductance'] = HallConductanceISR
+        outDict['PedersenConductance'] = PedersenConductanceISR
+
+
         X = numpy.array([UnixTime,TimeUTHour,PedersenConductance,HallConductance, PedersenConductanceISR, HallConductanceISR])
         with open(os.path.join(outLocation,outFile), 'wb') as f:
             f.write('############################################################################################# \n')
@@ -327,6 +338,10 @@ class Conductivity:
         plt.tight_layout()
         plt.savefig(os.path.join(outLocation,outPng))
         plt.close()
+
+        outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.pkl'
+        with open(outFile, 'w') as f:
+            pickle.dump(outDict,f)
         # plt.show()
 
 
@@ -336,6 +351,10 @@ if __name__ == '__main__':
     conduct = Conductivity()
 
 
+    # test case
+    fname_ac = ['/Users/srkaeppler/research/data/pfisr/conductance_allsky/events/20121106/ISR/20121106.004_ac_3min-cal.h5']
+    conduct.CalculateConductance(fname_ac, './')
+    """
     # 17 March 2013
     fname_ac=['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5',\
               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130317.005.done/20130317.005_ac_5min-cal.h5', \
@@ -370,3 +389,4 @@ if __name__ == '__main__':
                 '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161015.005/20161015.005_ac_3min-fitcal.h5',\
                 '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/MSWinds23/20161013.003/20161013.003_ac_5min-fitcal.h5']
     conduct.CalculateConductance(fname_ac, './')
+    """
