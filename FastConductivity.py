@@ -35,6 +35,7 @@ Assumptions:
     Mike Nicolls was the original author.
     4. Only looking at conductivities > 85 km altitude
 
+v0.2 added in some time edits and have validated with 2015 paper
 
 """
 
@@ -226,7 +227,7 @@ class Conductivity:
                TimeUTHour,FA_Altitude, UnixTime
 
 
-    def CalculateConductance(self,fname_ac,outLocation):
+    def CalculateConductance(self,fname_ac,outLocation, timeInterval=None):
 
         # need to figure out how to dynamically allocate this...
 
@@ -284,6 +285,18 @@ class Conductivity:
         HallConductanceISR = HallConductanceISR[qsort]
         PedersenConductanceISR = PedersenConductanceISR[qsort]
 
+        if len(timeInterval):
+
+            qtime = numpy.where((UnixTime >= timeInterval[0]) & (UnixTime <= timeInterval[1]))
+            UnixTime = UnixTime[qtime]
+            TimeUTHour = TimeUTHour[qtime]
+            PedersenConductivity = PedersenConductivity[qtime,:]
+            HallConductivity = HallConductivity[qtime,:]
+            PedersenConductance = PedersenConductance[qtime]
+            HallConductance = HallConductance[qtime]
+            HallConductanceISR = HallConductanceISR[qtime]
+            PedersenConductanceISR = PedersenConductanceISR[qtime]
+
         # do some file name making.
         t0 = datetime.datetime.utcfromtimestamp(int(UnixTime[0]))
         startTimeStr = str(t0.year)+str(t0.month).zfill(2)+str(t0.day).zfill(2)+'T'+str(t0.hour).zfill(2)+str(t0.minute).zfill(2)+'UT'
@@ -308,7 +321,7 @@ class Conductivity:
             f.write('############################################################################################# \n')
             f.write('Author: S.R. Kaeppler \n')
             f.write('Email: skaeppl@clemson.edu \n')
-            f.write('Version number: v0.1\n')
+            f.write('Version number: v0.2\n')
             f.write('File Created: %s \n'%datetime.datetime.now())
             f.write('Valid Time: %s-%s\n'%(startTimeStr,endTimeStr))
 
@@ -350,10 +363,16 @@ class Conductivity:
 if __name__ == '__main__':
     conduct = Conductivity()
 
+    dt1970 = datetime.datetime(1970,01,01,00,00,00)
+    dtInitial = datetime.datetime(2012,11,06,10,00,00)
+    dtFinal = datetime.datetime(2012,11,06,14,00,00)
+    tInitial = (dtInitial-dt1970).total_seconds()
+    tFinal = (dtFinal-dt1970).total_seconds()
 
+    timeInterval = [tInitial,tFinal]
     # test case
-    fname_ac = ['/Users/srkaeppler/research/data/pfisr/conductance_allsky/events/20121106/ISR/20121106.004_ac_3min-cal.h5']
-    conduct.CalculateConductance(fname_ac, './')
+    fname_ac = ['/data0/LongTermStorage/research/data/pfisr/conductance_allsky/events/20121106/ISR/20121106.004_ac_3min-cal.h5']
+    conduct.CalculateConductance(fname_ac, './', timeInterval=timeInterval)
     """
     # 17 March 2013
     fname_ac=['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5',\
