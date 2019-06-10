@@ -352,7 +352,9 @@ class Conductivity:
         plt.savefig(os.path.join(outLocation,outPng))
         plt.close()
 
+        print 'location', self.location
         outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.pkl'
+        print 'outFile', outFile
         with open(outFile, 'w') as f:
             pickle.dump(outDict,f)
         # plt.show()
