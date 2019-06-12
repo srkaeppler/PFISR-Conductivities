@@ -166,17 +166,21 @@ class Conductivity:
             tmpIRI = iri2016.IRI2016(timebcMean[itime],glat,glon,80,140,0.5)
             tmpMSIS = msis.MSIS2(timebcMean[itime],glat,glon,80,140.,0.5,CGSorSI='SI')
             AltGrid = numpy.arange(80.,140.,0.5)*1000.
+            tmpnO = tmpMSIS['nO']/1.e6
+            tmpO2 = tmpMSIS['nO2']/1.e6
+            tmpN2 = tmpMSIS['nN2']/1.e6
+
             for ibeam in range(Altitude.shape[0]):
-                f = interpolate.interp1d(AltGrid, tmpMSIS['nO'],bounds_error=False,fill_value=numpy.nan)
+                f = interpolate.interp1d(AltGrid, tmpnO,bounds_error=False,fill_value=numpy.nan)
                 nO[itime,ibeam,:] = f(Altitude[ibeam,:])
                 del f
 
-                f = interpolate.interp1d(AltGrid, tmpMSIS['nO2'],bounds_error=False,fill_value=numpy.nan)
+                f = interpolate.interp1d(AltGrid, tmpO2,bounds_error=False,fill_value=numpy.nan)
                 nO2[itime,ibeam,:] = f(Altitude[ibeam,:])
 
                 del f
 
-                f = interpolate.interp1d(AltGrid, tmpMSIS['nN2'],bounds_error=False,fill_value=numpy.nan)
+                f = interpolate.interp1d(AltGrid, tmpN2,bounds_error=False,fill_value=numpy.nan)
                 nN2[itime,ibeam,:] = f(Altitude[ibeam,:])
 
                 del f
@@ -255,6 +259,7 @@ class Conductivity:
             HallCond = HallCond + sh1
 
 
+
         HallConductance = numpy.zeros(HallCond.shape[0]) # time axis
         PedConductance = numpy.zeros(PedCond.shape[0])
         FA_index = numpy.where((BeamCodes[:,1] == self.azFA) & (BeamCodes[:,2] ==self.elFA))[0][0]
@@ -270,7 +275,9 @@ class Conductivity:
                 else:
                     HallConductance[i] = -1.
                 if (len(qp[0]) > 0):
-                    # print 'Ped', simps(PedCond[i,FA_index,qp],Altitude[FA_index,qp])
+                    print 'i', i, FA_index, qp
+                    print 'Ped Cond', PedCond[i,FA_index,qp]
+                    print 'Ped', simps(PedCond[i,FA_index,qp],Altitude[FA_index,qp])
                     PedConductance[i] = simps(PedCond[i,FA_index,qp],Altitude[FA_index,qp])[0]
                 else:
                     PedConductance[i] = -1.
@@ -290,7 +297,7 @@ class Conductivity:
                TimeUTHour,FA_Altitude, UnixTime
 
 
-    def CalculateConductance(self,fname_ac,outLocation, timeInterval=None):
+    def CalculateBCConductance(self,fname_ac,outLocation, timeInterval=None):
 
         # need to figure out how to dynamically allocate this...
 
@@ -323,9 +330,9 @@ class Conductivity:
             TimeUTHour = numpy.concatenate((TimeUTHour,t), axis=0)
             UnixTime = numpy.concatenate((UnixTime,tunixTime), axis=0)
 
-            tH1,tP1,tP2,tH2,t,alt,tunixTime = self.ProcessFAConductivity(ifile,opt='ISR')
-            HallConductanceISR = numpy.concatenate((HallConductanceISR,tH2), axis=0)
-            PedersenConductanceISR = numpy.concatenate((PedersenConductanceISR,tP2), axis=0)
+            # tH1,tP1,tP2,tH2,t,alt,tunixTime = self.ProcessFAConductivity(ifile,opt='ISR')
+            # HallConductanceISR = numpy.concatenate((HallConductanceISR,tH2), axis=0)
+            # PedersenConductanceISR = numpy.concatenate((PedersenConductanceISR,tP2), axis=0)
 
         # remove first element of Hall conductivity
         HallConductivity = HallConductivity[1:,:]
@@ -338,6 +345,9 @@ class Conductivity:
         # sort out the data before printing.
         # sort out the times and just make sure everything is ordered by time
         #unix time should be increasing
+        # print 'PedersenConductivity', PedersenConductivity.shape
+        # print 'HallConductivity', HallConductivity.shape
+        # print ''
         qsort = numpy.argsort(UnixTime)
         UnixTime = UnixTime[qsort]
         TimeUTHour = TimeUTHour[qsort]
@@ -345,8 +355,11 @@ class Conductivity:
         HallConductivity = HallConductivity[qsort,:]
         PedersenConductance = PedersenConductance[qsort]
         HallConductance = HallConductance[qsort]
-        HallConductanceISR = HallConductanceISR[qsort]
-        PedersenConductanceISR = PedersenConductanceISR[qsort]
+        print 'Pedersen conductance', PedersenConductance
+        print 'Hall conductance', HallConductance
+        print 'qsort', qsort
+        # HallConductanceISR = HallConductanceISR[qsort]
+        # PedersenConductanceISR = PedersenConductanceISR[qsort]
 
         if len(timeInterval):
 
@@ -357,8 +370,8 @@ class Conductivity:
             HallConductivity = HallConductivity[qtime,:]
             PedersenConductance = PedersenConductance[qtime]
             HallConductance = HallConductance[qtime]
-            HallConductanceISR = HallConductanceISR[qtime]
-            PedersenConductanceISR = PedersenConductanceISR[qtime]
+            # HallConductanceISR = HallConductanceISR[qtime]
+            # PedersenConductanceISR = PedersenConductanceISR[qtime]
 
         # do some file name making.
         t0 = datetime.datetime.utcfromtimestamp(int(UnixTime[0]))
@@ -379,7 +392,7 @@ class Conductivity:
         outDict['PedersenConductance'] = PedersenConductanceISR
 
 
-        X = numpy.array([UnixTime,TimeUTHour,PedersenConductance,HallConductance, PedersenConductanceISR, HallConductanceISR])
+        X = numpy.array([UnixTime,TimeUTHour,PedersenConductance,HallConductance])
         with open(os.path.join(outLocation,outFile), 'wb') as f:
             f.write('############################################################################################# \n')
             f.write('Author: S.R. Kaeppler \n')
@@ -394,10 +407,10 @@ class Conductivity:
             f.write('Time: UT Decimal Hours (hours) \n ')
             f.write('Pedersen Conductance (mho) using MSIS Tn=Ti \n')
             f.write('Hall Conductance (mho) using MSIS Tn=Ti \n')
-            f.write('Pedersen Conductance (mho) using ISR Ti and MSIS Tn \n')
-            f.write('Hall Conductance (mho) using ISR Ti and MSIS Tn \n')
+            # f.write('Pedersen Conductance (mho) using ISR Ti and MSIS Tn \n')
+            # f.write('Hall Conductance (mho) using ISR Ti and MSIS Tn \n')
             f.write('############################################################################################# \n')
-            numpy.savetxt(f,X.T, fmt='%d,%0.2f, %0.1f, %0.1f,%0.1f,%0.1f')
+            numpy.savetxt(f,X.T, fmt='%d,%0.2f, %0.1f, %0.1f')
 
 
         # time gaps program
@@ -405,8 +418,8 @@ class Conductivity:
         tmpT = (UnixTime-UnixTime[0])/3600.
         plt.plot(tmpT, PedersenConductance, 'b.', label='P Org')
         plt.plot(tmpT, HallConductance, 'r.', label='H Org')
-        plt.plot(tmpT, PedersenConductanceISR, 'bx', label='P ISR')
-        plt.plot(tmpT, HallConductanceISR, 'rx', label='H ISR')
+        # plt.plot(tmpT, PedersenConductanceISR, 'bx', label='P ISR')
+        # plt.plot(tmpT, HallConductanceISR, 'rx', label='H ISR')
         plt.xlabel('Time Hours after T0')
         plt.ylabel('Conductance (mho)')
         plt.legend()
@@ -428,16 +441,16 @@ class Conductivity:
 if __name__ == '__main__':
     conduct = Conductivity()
 
-    # dt1970 = datetime.datetime(1970,01,01,00,00,00)
-    # dtInitial = datetime.datetime(2012,11,06,10,00,00)
-    # dtFinal = datetime.datetime(2012,11,06,14,00,00)
-    # tInitial = (dtInitial-dt1970).total_seconds()
-    # tFinal = (dtFinal-dt1970).total_seconds()
-    #
-    # timeInterval = [tInitial,tFinal]
+    dt1970 = datetime.datetime(1970,01,01,00,00,00)
+    dtInitial = datetime.datetime(2013,3,17,0,00,00)
+    dtFinal = datetime.datetime(2013,3,18,0,00,00)
+    tInitial = (dtInitial-dt1970).total_seconds()
+    tFinal = (dtFinal-dt1970).total_seconds()
+
+    timeInterval = [tInitial,tFinal]
     # test case
     fname_ac = ['/Users/srkaeppler/Dropbox/research/data/CCMC_Conductivites/17march2013/20130317.004_bc_2min-Ne-cal.h5']
-    conduct.CalculateConductance(fname_ac, './')
+    conduct.CalculateBCConductance(fname_ac, './',timeInterval=timeInterval)
     """
     # 17 March 2013
     fname_ac=['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5',\
