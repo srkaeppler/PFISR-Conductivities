@@ -450,7 +450,7 @@ if __name__ == '__main__':
     timeInterval = [tInitial,tFinal]
     # test case
     fname_ac = ['/Users/srkaeppler/Dropbox/research/data/CCMC_Conductivites/17march2013/20130317.004_bc_2min-Ne-cal.h5']
-    conduct.CalculateBCConductance(fname_ac, './',timeInterval=timeInterval)
+    conduct.CalculateBCConductance(fname_ac, './17march2013/',timeInterval=timeInterval)
     """
     # 17 March 2013
     fname_ac=['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5',\

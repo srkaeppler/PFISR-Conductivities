@@ -375,7 +375,16 @@ if __name__ == '__main__':
     # test case
     fname_ac = ['/data0/LongTermStorage/research/data/pfisr/conductance_allsky/events/20121106/ISR/20121106.004_ac_3min-cal.h5']
     conduct.CalculateConductance(fname_ac, './', timeInterval=timeInterval)
-    """
+
+
+    dt1970 = datetime.datetime(1970,01,01,00,00,00)
+    dtInitial = datetime.datetime(2013,3,17,0,00,00)
+    dtFinal = datetime.datetime(2013,3,18,0,00,00)
+    tInitial = (dtInitial-dt1970).total_seconds()
+    tFinal = (dtFinal-dt1970).total_seconds()
+
+    timeInterval = [tInitial,tFinal]
+
     # 17 March 2013
     fname_ac=['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5',\
               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130317.005.done/20130317.005_ac_5min-cal.h5', \
@@ -384,8 +393,16 @@ if __name__ == '__main__':
               '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Dregion31/20130317.011.done/20130317.011_ac_5min-cal.h5']
         #   './20170317.005/20170317.005_ac_3min-fitcal.h5',\
         #   './20170317.007/20170317.007_ac_3min-fitcal.h5']
-    conduct.CalculateConductance(fname_ac, './')
+    conduct.CalculateConductance(fname_ac, '/data0/Dropbox/research/data/CCMC_Conductivites/17march2013/',timeInterval=timeInterval)
 
+
+    dt1970 = datetime.datetime(1970,01,01,00,00,00)
+    dtInitial = datetime.datetime(2015,6,21,0,00,00)
+    dtFinal = datetime.datetime(2015,6,25,0,00,00)
+    tInitial = (dtInitial-dt1970).total_seconds()
+    tFinal = (dtFinal-dt1970).total_seconds()
+
+    timeInterval = [tInitial,tFinal]
     # June 21-24, 2015
     fname_ac =['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/IPY27_Tracking_v03/20150621.002/20150621.002_ac_5min-fitcal.h5',\
                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/IPY27_Tracking_v03/20150622.002/20150622.002_ac_5min-fitcal.h5', \
@@ -396,7 +413,16 @@ if __name__ == '__main__':
                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/WorldDay35/20150623.002/20150623.002_ac_3min-fitcal.h5',\
                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/WorldDay35/20150624.002/20150624.002_ac_3min-fitcal.h5', \
                '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2015/06/WorldDay35/20150624.004/20150624.004_ac_3min-fitcal.h5']
-    conduct.CalculateConductance(fname_ac, './')
+    conduct.CalculateConductance(fname_ac, '/data0/Dropbox/research/data/CCMC_Conductivites/21_24June2015/',timeInterval=timeInterval)
+
+
+    dt1970 = datetime.datetime(1970,01,01,00,00,00)
+    dtInitial = datetime.datetime(2016,10,13,0,00,00)
+    dtFinal = datetime.datetime(2016,10,16,0,00,00)
+    tInitial = (dtInitial-dt1970).total_seconds()
+    tFinal = (dtFinal-dt1970).total_seconds()
+
+    timeInterval = [tInitial,tFinal]
 
     #Oct 13-15, 2016
     fname_ac = ['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/IPY27_Tracking_v03/20161012.002/20161012.002_ac_5min-fitcal.h5', \
@@ -409,5 +435,4 @@ if __name__ == '__main__':
                 '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161015.002/20161015.002_ac_3min-fitcal.h5', \
                 '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161015.005/20161015.005_ac_3min-fitcal.h5',\
                 '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/MSWinds23/20161013.003/20161013.003_ac_5min-fitcal.h5']
-    conduct.CalculateConductance(fname_ac, './')
-    """
+    conduct.CalculateConductance(fname_ac, '/data0/Dropbox/research/data/CCMC_Conductivites/13_15Oct2016/',timeInterval=timeInterval)
