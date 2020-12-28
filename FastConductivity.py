@@ -366,6 +366,19 @@ if __name__ == '__main__':
     conduct = Conductivity()
 
     dt1970 = datetime.datetime(1970,01,01,00,00,00)
+    dtInitial = datetime.datetime(2013,3,17,0,00,00)
+    dtFinal = datetime.datetime(2013,3,18,0,00,00)
+    tInitial = (dtInitial-dt1970).total_seconds()
+    tFinal = (dtFinal-dt1970).total_seconds()
+
+    timeInterval = [tInitial,tFinal]
+    # test case
+    fname_ac = ['/Users/srkaeppler/Dropbox/research/data/CCMC_Conductivites/17march2013/20130317.003_ac_5min-cal.h5']
+    conduct.CalculateConductance(fname_ac, './17march2013/',timeInterval=timeInterval)
+
+
+    """
+    dt1970 = datetime.datetime(1970,01,01,00,00,00)
     dtInitial = datetime.datetime(2012,11,06,10,00,00)
     dtFinal = datetime.datetime(2012,11,06,14,00,00)
     tInitial = (dtInitial-dt1970).total_seconds()
@@ -436,3 +449,4 @@ if __name__ == '__main__':
                 '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/WorldDay35/20161015.005/20161015.005_ac_3min-fitcal.h5',\
                 '/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2016/10/MSWinds23/20161013.003/20161013.003_ac_5min-fitcal.h5']
     conduct.CalculateConductance(fname_ac, '/data0/Dropbox/research/data/CCMC_Conductivites/13_15Oct2016/',timeInterval=timeInterval)
+    """

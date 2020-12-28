@@ -12,7 +12,7 @@ import numpy
 from scipy.integrate import simps
 import pickle
 
-sys.path.append('/Users/srkaeppler/Dropbox/research/data/NSF_Dregion_ParticlePrecipitation/Models')
+sys.path.append('/Users/srkaeppler/research/data/NSF_Dregion_ParticlePrecipitation/Models/')
 
 import IRI2016
 iri2016 = IRI2016.IRI2016()
@@ -59,6 +59,8 @@ class Conductivity:
         if location == 'PFISR':
             self.azFA = -154.3
             self.elFA = 77.5
+            #self.azFA = 15.0
+            #self.elFA = 89.0
 
 
 
