@@ -311,8 +311,8 @@ class Conductivity:
         t1 = datetime.datetime.utcfromtimestamp(int(UnixTime[-1]))
         endTimeStr = str(t1.year)+str(t1.month).zfill(2)+str(t1.day).zfill(2)+'T'+str(t1.hour).zfill(2)+str(t1.minute).zfill(2)+'UT'
 
-        outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'AFOSRYIP.pkl'
-        outPng =  self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'AFOSRYIP.png'
+        outFile = self.location+'_Conductance_NoMod_'+startTimeStr+'_'+endTimeStr+'AFOSRYIP.pkl'
+        outPng =  self.location+'_Conductance_NoMod_'+startTimeStr+'_'+endTimeStr+'AFOSRYIP.png'
         X = numpy.array([UnixTime,TimeUTHour,PedersenConductance,HallConductance, PedersenConductanceISR, HallConductanceISR])
         with open(outFile,'w') as f:
             pickle.dump(outDict,f)

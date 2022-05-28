@@ -57,10 +57,8 @@ class Conductivity:
         self.location = location
         # can configure for other radars too...
         if location == 'PFISR':
-            #self.azFA = -154.3
-            #self.elFA = 77.5
-            self.azFA = 15.0
-            self.elFA = 89.0
+            self.azFA = -154.3
+            self.elFA = 77.5
 
 
 
@@ -132,8 +130,8 @@ class Conductivity:
         # bring this up to speed with python2.7
         # read in the data
         with tables.open_file(fname_bc) as bch5:
-            ne1=bch5.root.NeFromPower.Ne_NoTr.read()#dat1['/FittedParams']['Ne']
-            # dne1=bch5.root.NeFromPower.dNeFrac.read()*ne1# dne1=dat1['/FittedParams']['dNe']
+            ne1=bch5.root.NeFromPower.Ne_Mod.read()#dat1['/FittedParams']['Ne']
+            dne1=bch5.root.NeFromPower.dNeFrac.read()*ne1# dne1=dat1['/FittedParams']['dNe']
             time1=bch5.root.Time.UnixTime.read()#dat1['/Time']['UnixTime']
             dtime1=bch5.root.Time.dtime.read()#dat1['/Time']['dtime']
             Altitude=bch5.root.NeFromPower.Altitude.read()
@@ -143,6 +141,12 @@ class Conductivity:
             Babs1 = bch5.root.Geomag.Babs.read()#dat1['/Geomag']['Babs'];
             BabsAlt = bch5.root.Geomag.Altitude.read()
         print 'Babs1',Babs1.shape
+
+        print ne1.shape
+        for ialt in range(len(Altitude[0,:])):
+            print 'ialt, ne', ialt, Altitude[0,ialt], ne1[10,0,ialt]
+        sys.exit()
+        # ne1 = 2.0*ne1
 
         if Babs1[0,0]<1.0e-5:
             Babs1=Babs1*1.0e5
@@ -165,9 +169,9 @@ class Conductivity:
         #testDict = iri.IRI2016(tUnix,Lat,Lon,Heibeg,Heiend,step)
         timebcMean = numpy.mean(time1,axis=1)
         for itime in range(timebcMean.shape[0]):
-            tmpIRI = iri2016.IRI2016(timebcMean[itime],glat,glon,80,140,0.5)
-            tmpMSIS = msis.MSIS2(timebcMean[itime],glat,glon,80,140.,0.5,CGSorSI='SI')
-            AltGrid = numpy.arange(80.,140.,0.5)*1000.
+            tmpIRI = iri2016.IRI2016(timebcMean[itime],glat,glon,95,505,5.0)
+            tmpMSIS = msis.MSIS2(timebcMean[itime],glat,glon,95,505.,5.0,CGSorSI='SI')
+            AltGrid = numpy.arange(95.,505.,5.0)*1000.
             tmpnO = tmpMSIS['nO']/1.e6
             tmpO2 = tmpMSIS['nO2']/1.e6
             tmpN2 = tmpMSIS['nN2']/1.e6
@@ -199,7 +203,7 @@ class Conductivity:
                 Ti[itime,ibeam,:] = f(Altitude[ibeam,:])
                 del f
 
-                f = interpolate.interp1d(BabsAlt[ibeam,:],Babs1[ibeam,:],bounds_error=False,fill_value=numpy.nan)
+                f = interpolate.interp1d(BabsAlt[ibeam,:],Babs1[ibeam,:],bounds_error=False,fill_value='extrapolate')
                 BabsInterp[ibeam,:] = f(Altitude[ibeam,:])
                 del f
                 print 'ibeam',ibeam
@@ -261,7 +265,7 @@ class Conductivity:
             HallCond = HallCond + sh1
 
 
-
+        print 'PedCond.shape', PedCond.shape
         HallConductance = numpy.zeros(HallCond.shape[0]) # time axis
         PedConductance = numpy.zeros(PedCond.shape[0])
         FA_index = numpy.where((BeamCodes[:,1] == self.azFA) & (BeamCodes[:,2] ==self.elFA))[0][0]
@@ -299,7 +303,7 @@ class Conductivity:
                TimeUTHour,FA_Altitude, UnixTime
 
 
-    def CalculateBCConductance(self,fname_ac,outLocation, timeInterval=None):
+    def CalculateLPConductance(self,fname_ac,outLocation, timeInterval=None):
 
         # need to figure out how to dynamically allocate this...
 
@@ -309,29 +313,48 @@ class Conductivity:
 
 
             tH1,tP1,tP2,tH2,t,alt,tunixTime = self.ProcessFAConductivity(ifile)
+            print 'alt', alt.shape
+            print 'tH1, tH2', tH1.shape, tH2.shape
+            altfoo =  numpy.tile(alt,tH2.shape[0])
+            altfoo = altfoo.reshape(tH1.shape[0],tH1.shape[1])
+            # print altfoo[0,:]
+            # print altfoo[1,:]
+            print 'altfoo.shape', altfoo.shape
+
+            print 'alt', alt
+            print 'tH1', tH1
+            for ialt in range(len(alt)):
+                print 'alt, tH1', alt[ialt], tH1[10,ialt]
+
+            # sys.exit()
             if k:
                 print tH1.shape
-                HallConductivity = numpy.zeros([1,500])
-                HallConductance = numpy.zeros([0])
-                HallConductanceISR = numpy.zeros([0])
-                PedersenConductivity = numpy.zeros([1,500])
-                PedersenConductance = numpy.zeros([0])
-                PedersenConductanceISR = numpy.zeros([0])
-                TimeUTHour = numpy.zeros([0])
-                UnixTime = numpy.zeros([0])
-                Altitude = []
+                HallConductivity = numpy.zeros([1,500])*numpy.nan
+                HallConductance = numpy.zeros([0])*numpy.nan
+                HallConductanceISR = numpy.zeros([0])*numpy.nan
+                PedersenConductivity = numpy.zeros([1,500])*numpy.nan
+                PedersenConductance = numpy.zeros([0])*numpy.nan
+                PedersenConductanceISR = numpy.zeros([0])*numpy.nan
+                TimeUTHour = numpy.zeros([0])*numpy.nan
+                UnixTime = numpy.zeros([0])*numpy.nan
+                Altitude = numpy.zeros([1,500])*numpy.nan
                 k=False
-            tmpHall = numpy.zeros([tH1.shape[0],500])
+            tmpHall = numpy.zeros([tH1.shape[0],500])*numpy.nan
             tmpHall[:,0:tH1.shape[1]] = tH1
             HallConductivity = numpy.concatenate((HallConductivity,tmpHall),axis=0)
-            tmpPed = numpy.zeros([tP1.shape[0],500])
+            tmpPed = numpy.zeros([tP1.shape[0],500])*numpy.nan
             tmpPed[:,0:tP1.shape[1]] = tP1
+            tmpAlt = numpy.zeros([tH1.shape[0],500])*numpy.nan
+            tmpAlt[:,0:tH1.shape[1]] = altfoo
+
+
             PedersenConductivity = numpy.concatenate((PedersenConductivity,tmpPed),axis=0)
-            PedersenConductance = numpy.concatenate((PedersenConductance,tP2), axis=0)
-            HallConductance = numpy.concatenate((HallConductance,tH2), axis=0)
+            PedersenConductance = numpy.concatenate([PedersenConductance,tP2], axis=0)
+            HallConductance = numpy.concatenate([HallConductance,tH2], axis=0)
             TimeUTHour = numpy.concatenate((TimeUTHour,t), axis=0)
             UnixTime = numpy.concatenate((UnixTime,tunixTime), axis=0)
-
+            Altitude = numpy.concatenate((Altitude,tmpAlt), axis=0)
+            print 'PedersenConductance,', PedersenConductance
             # tH1,tP1,tP2,tH2,t,alt,tunixTime = self.ProcessFAConductivity(ifile,opt='ISR')
             # HallConductanceISR = numpy.concatenate((HallConductanceISR,tH2), axis=0)
             # PedersenConductanceISR = numpy.concatenate((PedersenConductanceISR,tP2), axis=0)
@@ -339,24 +362,31 @@ class Conductivity:
         # remove first element of Hall conductivity
         HallConductivity = HallConductivity[1:,:]
         PedersenConductivity = PedersenConductivity[1:,:]
-        # HallConductance = HallConductance[1:]
-        # PedersenConductance = PedersenConductance[1:]
+        HallConductance = HallConductance[1:]
+        PedersenConductance = PedersenConductance[1:]
+        TimeUTHour = TimeUTHour[1:]
+        UnixTime = UnixTime[1:]
+        Altitude = Altitude[1:]
         # HallConductanceISR = HallConductanceISR[1:]
         # PedersenConductanceISR = PedersenConductanceISR[1:]
 
         # sort out the data before printing.
         # sort out the times and just make sure everything is ordered by time
         #unix time should be increasing
-        # print 'PedersenConductivity', PedersenConductivity.shape
+        print 'PedersenConductivity', PedersenConductivity.shape
+        print 'PedersenConductance', PedersenConductance.shape
         # print 'HallConductivity', HallConductivity.shape
         # print ''
         qsort = numpy.argsort(UnixTime)
+        print 'qsort',qsort
+        print 'qsort.shape',qsort.shape
         UnixTime = UnixTime[qsort]
         TimeUTHour = TimeUTHour[qsort]
         PedersenConductivity = PedersenConductivity[qsort,:]
         HallConductivity = HallConductivity[qsort,:]
         PedersenConductance = PedersenConductance[qsort]
         HallConductance = HallConductance[qsort]
+        Altitude = Altitude[qsort]
         print 'Pedersen conductance', PedersenConductance
         print 'Hall conductance', HallConductance
         print 'qsort', qsort
@@ -372,6 +402,7 @@ class Conductivity:
             HallConductivity = HallConductivity[qtime,:]
             PedersenConductance = PedersenConductance[qtime]
             HallConductance = HallConductance[qtime]
+            Altitude=Altitude[qtime]
             # HallConductanceISR = HallConductanceISR[qtime]
             # PedersenConductanceISR = PedersenConductanceISR[qtime]
 
@@ -382,16 +413,17 @@ class Conductivity:
         t1 = datetime.datetime.utcfromtimestamp(int(UnixTime[-1]))
         endTimeStr = str(t1.year)+str(t1.month).zfill(2)+str(t1.day).zfill(2)+'T'+str(t1.hour).zfill(2)+str(t1.minute).zfill(2)+'UT'
 
-        outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.txt'
-        outPng =  self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.png'
+        outFile = self.location+'_Conductance_NoMod_LP_'+startTimeStr+'_'+endTimeStr+'.txt'
+        outPng =  self.location+'_Conductance_NoMod_LP_'+startTimeStr+'_'+endTimeStr+'.png'
 
         outDict = dict()
         outDict['UnixTime'] = UnixTime
         outDict['TimeUTHour'] = TimeUTHour
         outDict['PedersenConductivity'] = PedersenConductivity
         outDict['HallConductivity'] = HallConductivity
-        outDict['HallConductance'] = HallConductanceISR
-        outDict['PedersenConductance'] = PedersenConductanceISR
+        outDict['HallConductance'] = HallConductance
+        outDict['PedersenConductance'] = PedersenConductance
+        outDict['Altitude'] = Altitude
 
 
         X = numpy.array([UnixTime,TimeUTHour,PedersenConductance,HallConductance])
@@ -431,7 +463,7 @@ class Conductivity:
         plt.close()
 
         print 'location', self.location
-        outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.pkl'
+        outFile = self.location+'_Conductance_NoMod_LP_'+startTimeStr+'_'+endTimeStr+'.pkl'
         print 'outFile', outFile
         with open(outFile, 'w') as f:
             pickle.dump(outDict,f)
@@ -442,7 +474,7 @@ class Conductivity:
 
 if __name__ == '__main__':
     conduct = Conductivity()
-
+    """
     dt1970 = datetime.datetime(1970,01,01,00,00,00)
     dtInitial = datetime.datetime(2013,3,17,0,00,00)
     dtFinal = datetime.datetime(2013,3,18,0,00,00)
@@ -451,8 +483,24 @@ if __name__ == '__main__':
 
     timeInterval = [tInitial,tFinal]
     # test case
-    fname_ac = ['/Users/srkaeppler/Dropbox/research/data/CCMC_Conductivites/17march2013/20130317.004_bc_2min-Ne-cal.h5']
+    fname_ac = ['/Users/srkaeppler/Dropbox/research/data/CCMC_Conductivites/17march2013/20130317.003_ac_5min-cal.h5']
     conduct.CalculateBCConductance(fname_ac, './17march2013/',timeInterval=timeInterval)
+    """
+
+    dt1970 = datetime.datetime(1970,01,01,00,00,00)
+    dtInitial = datetime.datetime(2015,3,17,0,00,00)
+    dtFinal = datetime.datetime(2015,3,18,0,00,00)
+    tInitial = (dtInitial-dt1970).total_seconds()
+    tFinal = (dtFinal-dt1970).total_seconds()
+
+    timeInterval = [tInitial,tFinal]
+    # test case
+    fname_ac = ['/Users/srkaeppler/Dropbox/research/data/NSF_PFISR_Eregion_NeutralWinds_SharedData/03172015/20150316.002_lp_5min-cal.h5',
+                '/Users/srkaeppler/Dropbox/research/data/NSF_PFISR_Eregion_NeutralWinds_SharedData/03172015/20150317.001_lp_1min-cal.h5',
+                '/Users/srkaeppler/Dropbox/research/data/NSF_PFISR_Eregion_NeutralWinds_SharedData/03172015/20150317.002_lp_5min-cal.h5']
+    fname_ac = sorted(fname_ac)
+    conduct.CalculateLPConductance(fname_ac, './17march2015/',timeInterval=timeInterval)
+
     """
     # 17 March 2013
     fname_ac=['/media/srk/KaepplerAMISRProcessed/AMISR_PROCESSED/processed_data/PFISR/2013/03/PINOT_Daytime31/20130316.006.done/20130316.006_ac_5min-cal.h5',\

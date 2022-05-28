@@ -57,10 +57,8 @@ class Conductivity:
         self.location = location
         # can configure for other radars too...
         if location == 'PFISR':
-            #self.azFA = -154.3
-            #self.elFA = 77.5
-            self.azFA = 15.0
-            self.elFA = 89.0
+            self.azFA = -154.3
+            self.elFA = 77.5
 
 
 
@@ -132,8 +130,8 @@ class Conductivity:
         # bring this up to speed with python2.7
         # read in the data
         with tables.open_file(fname_bc) as bch5:
-            ne1=bch5.root.NeFromPower.Ne_NoTr.read()#dat1['/FittedParams']['Ne']
-            # dne1=bch5.root.NeFromPower.dNeFrac.read()*ne1# dne1=dat1['/FittedParams']['dNe']
+            ne1=bch5.root.NeFromPower.Ne_Mod.read()#dat1['/FittedParams']['Ne']
+            dne1=bch5.root.NeFromPower.dNeFrac.read()*ne1# dne1=dat1['/FittedParams']['dNe']
             time1=bch5.root.Time.UnixTime.read()#dat1['/Time']['UnixTime']
             dtime1=bch5.root.Time.dtime.read()#dat1['/Time']['dtime']
             Altitude=bch5.root.NeFromPower.Altitude.read()
@@ -165,9 +163,9 @@ class Conductivity:
         #testDict = iri.IRI2016(tUnix,Lat,Lon,Heibeg,Heiend,step)
         timebcMean = numpy.mean(time1,axis=1)
         for itime in range(timebcMean.shape[0]):
-            tmpIRI = iri2016.IRI2016(timebcMean[itime],glat,glon,80,140,0.5)
-            tmpMSIS = msis.MSIS2(timebcMean[itime],glat,glon,80,140.,0.5,CGSorSI='SI')
-            AltGrid = numpy.arange(80.,140.,0.5)*1000.
+            tmpIRI = iri2016.IRI2016(timebcMean[itime],glat,glon,80,140,1.0)
+            tmpMSIS = msis.MSIS2(timebcMean[itime],glat,glon,80,140.,1.0,CGSorSI='SI')
+            AltGrid = numpy.arange(80.,140.,1.0)*1000.
             tmpnO = tmpMSIS['nO']/1.e6
             tmpO2 = tmpMSIS['nO2']/1.e6
             tmpN2 = tmpMSIS['nN2']/1.e6
@@ -382,8 +380,8 @@ class Conductivity:
         t1 = datetime.datetime.utcfromtimestamp(int(UnixTime[-1]))
         endTimeStr = str(t1.year)+str(t1.month).zfill(2)+str(t1.day).zfill(2)+'T'+str(t1.hour).zfill(2)+str(t1.minute).zfill(2)+'UT'
 
-        outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.txt'
-        outPng =  self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.png'
+        outFile = self.location+'_Conductance_NoMod_'+startTimeStr+'_'+endTimeStr+'.txt'
+        outPng =  self.location+'_Conductance_NoMod_'+startTimeStr+'_'+endTimeStr+'.png'
 
         outDict = dict()
         outDict['UnixTime'] = UnixTime
@@ -431,7 +429,7 @@ class Conductivity:
         plt.close()
 
         print 'location', self.location
-        outFile = self.location+'_Conductance_'+startTimeStr+'_'+endTimeStr+'.pkl'
+        outFile = self.location+'_Conductance_NoMod_'+startTimeStr+'_'+endTimeStr+'.pkl'
         print 'outFile', outFile
         with open(outFile, 'w') as f:
             pickle.dump(outDict,f)
@@ -451,7 +449,7 @@ if __name__ == '__main__':
 
     timeInterval = [tInitial,tFinal]
     # test case
-    fname_ac = ['/Users/srkaeppler/Dropbox/research/data/CCMC_Conductivites/17march2013/20130317.004_bc_2min-Ne-cal.h5']
+    fname_ac = ['/Users/srkaeppler/Dropbox/research/data/CCMC_Conductivites/17march2013/20130317.003_ac_5min-cal.h5']
     conduct.CalculateBCConductance(fname_ac, './17march2013/',timeInterval=timeInterval)
     """
     # 17 March 2013
